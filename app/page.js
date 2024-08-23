@@ -11,31 +11,45 @@ import {
   Button,
   Box,
   Grid,
+  CircularProgress
 } from '@mui/material';
 import Head from 'next/head';
+import { useState } from 'react';
 
 export default function Home() {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
   const handleSubmit = async () => {
-    const checkoutSession = await fetch('/api/checkout_sessions', {
-      method: 'POST',
-      headers: {
-        origin: 'http://localhost:3000',
-      },
-    });
+    setLoading(true);
+    setError(null);
 
-    const checkoutSessionJson = await checkoutSession.json();
+    try {
+      const checkoutSession = await fetch('/api/checkout_sessions', {
+        method: 'POST',
+        headers: {
+          origin: 'http://localhost:3000',
+        },
+      });
 
-    if (checkoutSession.statusCode === 500) {
-      console.error(checkoutSession.message);
-      return;
+      const checkoutSessionJson = await checkoutSession.json();
+
+      if (checkoutSession.statusCode === 500) {
+        setError(checkoutSession.message);
+        return;
+      }
+
+      const stripe = await getStripe();
+      const { error } = await stripe.redirectToCheckout({
+        sessionId: checkoutSessionJson.id,
+      });
+
+      if (error) setError(error.message);
+    } catch (err) {
+      setError("An unexpected error occurred");
+    } finally {
+      setLoading(false);
     }
-
-    const stripe = await getStripe();
-    const { error } = await stripe.redirectToCheckout({
-      sessionId: checkoutSessionJson.id,
-    });
-
-    if (error) console.warn(error.message);
   };
 
   return (
@@ -167,9 +181,15 @@ export default function Home() {
                 color="primary"
                 sx={{ mt: 2 }}
                 onClick={handleSubmit}
+                disabled={loading}
               >
-                Choose Pro
+                {loading ? <CircularProgress size={24} /> : "Choose Pro"}
               </Button>
+              {error && (
+                <Typography variant="body2" color="error" sx={{ mt: 2 }}>
+                  {error}
+                </Typography>
+              )}
             </Box>
           </Grid>
         </Grid>

@@ -3,7 +3,7 @@
 import { useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { writeBatch, doc, collection, getDoc, setDoc } from 'firebase/firestore';
+import { writeBatch, doc, collection, getDoc } from 'firebase/firestore';
 import { db } from '../firebase';  // Adjust this import based on your actual firebase config location
 import {
   Container,
@@ -21,6 +21,8 @@ import {
   DialogContent,
   DialogContentText,
   DialogActions,
+  CircularProgress,
+  Alert,
 } from '@mui/material';
 
 export default function Generate() {
@@ -30,9 +32,14 @@ export default function Generate() {
   const [text, setText] = useState('');
   const [name, setName] = useState('');
   const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
   const router = useRouter();
 
   const handleSubmit = async () => {
+    setLoading(true);
+    setError(null);
+
     try {
       const response = await fetch('/api/generate', {
         method: 'POST',
@@ -41,10 +48,13 @@ export default function Generate() {
         },
         body: JSON.stringify({ text }),
       });
+      if (!response.ok) throw new Error('Failed to generate flashcards');
       const data = await response.json();
       setFlashcards(data);
     } catch (error) {
-      console.error('Error fetching data:', error);
+      setError('Error generating flashcards. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -64,8 +74,12 @@ export default function Generate() {
   };
 
   const saveFlashcards = async () => {
+    setLoading(true);
+    setError(null);
+
     if (!name) {
-      alert('Please enter a name');
+      setError('Please enter a name for your flashcard collection.');
+      setLoading(false);
       return;
     }
 
@@ -77,7 +91,8 @@ export default function Generate() {
       if (docSnap.exists()) {
         const collections = docSnap.data().flashcards || [];
         if (collections.find((f) => f.name === name)) {
-          alert('Flashcard collection with the same name already exists');
+          setError('Flashcard collection with the same name already exists.');
+          setLoading(false);
           return;
         } else {
           collections.push({ name });
@@ -96,7 +111,9 @@ export default function Generate() {
       handleClose();
       router.push('/flashcards');
     } catch (error) {
-      console.error('Error saving flashcards:', error);
+      setError('Error saving flashcards. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -125,9 +142,20 @@ export default function Generate() {
               mb: 2,
             }}
           />
-          <Button variant="contained" color="primary" onClick={handleSubmit} fullWidth>
-            Submit
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={handleSubmit}
+            fullWidth
+            disabled={loading}
+          >
+            {loading ? <CircularProgress size={24} /> : 'Submit'}
           </Button>
+          {error && (
+            <Alert severity="error" sx={{ mt: 2 }}>
+              {error}
+            </Alert>
+          )}
         </Paper>
       </Box>
       {flashcards.length > 0 && (
@@ -187,8 +215,13 @@ export default function Generate() {
             ))}
           </Grid>
           <Box sx={{ mt: 4, display: 'flex', justifyContent: 'center' }}>
-            <Button variant="contained" color="secondary" onClick={handleOpen}>
-              Save
+            <Button
+              variant="contained"
+              color="secondary"
+              onClick={handleOpen}
+              disabled={loading}
+            >
+              {loading ? <CircularProgress size={24} /> : 'Save'}
             </Button>
           </Box>
         </Box>
@@ -213,7 +246,9 @@ export default function Generate() {
         </DialogContent>
         <DialogActions>
           <Button onClick={handleClose}>Cancel</Button>
-          <Button onClick={saveFlashcards}>Save</Button>
+          <Button onClick={saveFlashcards} disabled={loading}>
+            {loading ? <CircularProgress size={24} /> : 'Save'}
+          </Button>
         </DialogActions>
       </Dialog>
     </Container>

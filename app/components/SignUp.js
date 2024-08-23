@@ -13,9 +13,9 @@ import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import Typography from '@mui/material/Typography';
 import Container from '@mui/material/Container';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
-import { signIn } from 'next-auth/react';  // Import signIn function
-import GoogleIcon from '@mui/icons-material/Google';  // Google icon
-import GitHubIcon from '@mui/icons-material/GitHub';  // GitHub icon
+import { signIn } from 'next-auth/react'; // Import signIn function
+import GoogleIcon from '@mui/icons-material/Google'; // Google icon
+import GitHubIcon from '@mui/icons-material/GitHub'; // GitHub icon
 
 function Copyright(props) {
   return (
@@ -33,14 +33,26 @@ function Copyright(props) {
 const defaultTheme = createTheme();
 
 export default function SignUp() {
+  const [error, setError] = React.useState('');
+
   const handleSubmit = (event) => {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
+    const email = data.get('email');
+    const password = data.get('password');
+    const confirmPassword = data.get('confirmPassword');
+
+    if (password !== confirmPassword) {
+      setError('Passwords do not match');
+      return;
+    }
+
     console.log({
-      email: data.get('email'),
-      password: data.get('password'),
-      confirmPassword: data.get('confirmPassword'),
+      email,
+      password,
     });
+
+    // Implement sign-up logic here
   };
 
   return (
@@ -80,7 +92,7 @@ export default function SignUp() {
               label="Password"
               type="password"
               id="password"
-              autoComplete="current-password"
+              autoComplete="new-password"
             />
             <TextField
               margin="normal"
@@ -92,6 +104,11 @@ export default function SignUp() {
               id="confirmPassword"
               autoComplete="new-password"
             />
+            {error && (
+              <Typography color="error" variant="body2" align="center" sx={{ mt: 2 }}>
+                {error}
+              </Typography>
+            )}
             <Button
               type="submit"
               fullWidth
