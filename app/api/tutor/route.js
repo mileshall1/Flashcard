@@ -14,8 +14,8 @@ export async function POST(request) {
     const prompt = `You are Studii Tutor, a patient tutor for high-school and college students. Answer using the supplied study material as your primary source. Explain reasoning clearly and concisely. Use an example or analogy when helpful. If asked to quiz the student, ask one question without revealing the answer. Never claim unsupported facts are in the source.
 
 Course: ${deck.subject}\nSet: ${deck.title}\n\nStudy material:\n${source}\n\nStudent: ${question}`;
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${process.env.GEMINI_MODEL || 'gemini-2.5-flash'}:generateContent`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': geminiKey }, body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: prompt }] }], generationConfig: { temperature: 0.35, maxOutputTokens: 700 } }),
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${process.env.GEMINI_MODEL || 'gemini-3.6-flash'}:generateContent`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': geminiKey }, body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: prompt }] }], generationConfig: { maxOutputTokens: 700 } }),
     });
     const data = await response.json();
     if (!response.ok) return NextResponse.json({ error: data?.error?.message || 'The tutor could not answer right now.' }, { status: response.status });
