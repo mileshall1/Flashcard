@@ -194,7 +194,7 @@ ${extractedFileText || '(Use the attached source file.)'}`;
       parts.push({ inlineData: { mimeType: filePayload.type, data: filePayload.base64 } });
     }
     const geminiResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${process.env.GEMINI_MODEL || 'gemini-2.5-flash'}:generateContent`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${process.env.GEMINI_MODEL || 'gemini-3.6-flash'}:generateContent`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-goog-api-key': geminiKey },
