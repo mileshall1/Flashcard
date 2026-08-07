@@ -58,6 +58,22 @@ const subjects = [
   'Spanish', 'French', 'Computer Science', 'Business', 'Nursing', 'Other',
 ];
 
+function localDateKey(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function sanitizeDecks(value) {
+  if (!Array.isArray(value)) return null;
+  return value.filter((deck) => (
+    deck && typeof deck.id === 'string' && typeof deck.title === 'string' &&
+    typeof deck.subject === 'string' && Array.isArray(deck.cards) && deck.cards.length > 0 &&
+    deck.cards.every((card) => card && typeof card.front === 'string' && typeof card.back === 'string')
+  ));
+}
+
 function Icon({ name }) {
   const icons = { home: '⌂', library: '▤', create: '+', progress: '↗', settings: '⚙', search: '⌕', clock: '◷', cards: '▱', spark: '✦', close: '×', arrow: '→', back: '←', upload: '⇧', moon: '☾', sun: '☀', test: '✓', calendar: '□' };
   return <span aria-hidden="true">{icons[name]}</span>;
@@ -465,6 +481,7 @@ function DeckManagerModal({ deck, mode, onClose, onSave }) {
 }
 
 export default function Home() {
+  const [mounted, setMounted] = useState(false);
   const [decks, setDecks] = useState(starterDecks);
   const [showCreate, setShowCreate] = useState(false);
   const [activeDeck, setActiveDeck] = useState(null);
@@ -492,7 +509,10 @@ export default function Home() {
   useEffect(() => {
     const saved = window.localStorage.getItem('studii-decks');
     if (saved) {
-      try { setDecks(JSON.parse(saved)); } catch { /* keep starter data */ }
+      try {
+        const validDecks = sanitizeDecks(JSON.parse(saved));
+        if (validDecks?.length) setDecks(validDecks);
+      } catch { /* keep starter data */ }
     }
     const savedTheme = window.localStorage.getItem('studii-theme');
     if (savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
@@ -511,7 +531,8 @@ export default function Home() {
       const data = await response.json();
       if (!response.ok) { setCloudSync('error'); return; }
       if (data.state) {
-        if (Array.isArray(data.state.decks)) setDecks(data.state.decks);
+        const validDecks = sanitizeDecks(data.state.decks);
+        if (validDecks?.length) setDecks(validDecks);
         if (Array.isArray(data.state.calendarItems)) setCalendarItems(data.state.calendarItems);
         if (data.state.reviewSchedule && typeof data.state.reviewSchedule === 'object') setReviewSchedule(data.state.reviewSchedule);
         if (Array.isArray(data.state.mistakes)) setMistakes(data.state.mistakes);
@@ -522,6 +543,7 @@ export default function Home() {
     const syncPage = () => setActivePage(['sets', 'tests', 'calendar', 'progress', 'settings', 'review', 'mistakes'].includes(window.location.hash.slice(1)) ? window.location.hash.slice(1) : 'home');
     syncPage();
     window.addEventListener('hashchange', syncPage);
+    setMounted(true);
     return () => window.removeEventListener('hashchange', syncPage);
   }, []);
   /* eslint-enable react-hooks/set-state-in-effect */
@@ -587,7 +609,7 @@ export default function Home() {
       const interval = correct ? [1, 3, 7, 14, 30, 60][Math.min(streak - 1, 5)] : 0;
       const due = new Date();
       due.setDate(due.getDate() + interval);
-      const next = { ...current, [key]: { interval, streak, source, lastReviewed: new Date().toISOString(), due: due.toISOString().slice(0, 10) } };
+      const next = { ...current, [key]: { interval, streak, source, lastReviewed: new Date().toISOString(), due: localDateKey(due) } };
       window.localStorage.setItem('studii-review-schedule', JSON.stringify(next));
       return next;
     });
@@ -622,7 +644,7 @@ export default function Home() {
     date.setHours(12, 0, 0, 0);
     date.setDate(date.getDate() + offset);
     return {
-      iso: date.toISOString().slice(0, 10),
+      iso: localDateKey(date),
       day: date.toLocaleDateString('en-US', { weekday: 'short' }),
       number: date.getDate(),
       month: date.toLocaleDateString('en-US', { month: 'short' }),
@@ -630,7 +652,7 @@ export default function Home() {
   }), []);
   const todayLabel = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }).toUpperCase();
   const nextEvent = [...calendarItems].filter((item) => item.date >= weekDays[0].iso).sort((a, b) => a.date.localeCompare(b.date))[0];
-  const todayIso = new Date().toISOString().slice(0, 10);
+  const todayIso = localDateKey();
   const dueCards = decks.flatMap((deck) => deck.cards.map((card, cardIndex) => ({ deck, card, cardIndex, schedule: reviewSchedule[`${deck.id}:${cardIndex}`] })))
     .filter((item) => !item.schedule || item.schedule.due <= todayIso);
   const monthView = useMemo(() => {
@@ -642,7 +664,7 @@ export default function Home() {
       const date = new Date(gridStart);
       date.setDate(gridStart.getDate() + index);
       return {
-        iso: date.toISOString().slice(0, 10),
+        iso: localDateKey(date),
         number: date.getDate(),
         currentMonth: date.getMonth() === first.getMonth(),
         isToday: date.toDateString() === today.toDateString(),
@@ -650,6 +672,8 @@ export default function Home() {
     });
     return { label: first.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }), days };
   }, [monthOffset]);
+
+  if (!mounted) return <div className="app-loading" aria-label="Loading Studii" />;
 
   if (activeDeck && activeMode === 'test') return <TestView deck={activeDeck} onExit={() => setActiveDeck(null)} onAnswer={recordTestAnswer} theme={theme} />;
   if (activeDeck) return <StudyView deck={activeDeck} initialCardIndex={activeCardIndex} onExit={() => setActiveDeck(null)} onUpdate={updateMastered} onReview={recordReview} theme={theme} />;
@@ -703,7 +727,7 @@ export default function Home() {
               <h2>{decks[0]?.title}</h2>
               <p>{decks[0]?.cards.length} cards · {decks[0]?.mastered} mastered</p>
               <div className="continue-actions">
-                <button className="primary-button" onClick={() => openDeck(decks[0], 'study', Math.min(decks[0].mastered, decks[0].cards.length - 1))}>Resume session <Icon name="arrow" /></button>
+                <button className="primary-button" onClick={() => openDeck(decks[0], 'study', 0)}>Study now <Icon name="arrow" /></button>
                 <span>About 6 min</span>
               </div>
             </div>
@@ -794,7 +818,7 @@ export default function Home() {
           {activePage === 'tests' && <section className="page-view">
             <div className="page-heading"><span className="eyebrow">PRACTICE TESTS</span><h1>Test what you actually know</h1><p>Choose a study set and practice with multiple choice, true/false, and fill-in-the-blank questions.</p></div>
             <div className="test-library">
-              {filteredDecks.map((deck) => <article key={deck.id}><span className={`test-subject ${deck.color}`}>{deck.subject.slice(0, 2).toUpperCase()}</span><div><small>{deck.subject}</small><h3>{deck.title}</h3><p>{Math.max(5, deck.cards.length)} questions · Mixed formats · Instant feedback</p></div><button className="primary-button" onClick={() => openDeck(deck, 'test')}>Start test <Icon name="arrow" /></button></article>)}
+              {filteredDecks.map((deck) => <article key={deck.id}><span className={`test-subject ${deck.color}`}>{deck.subject.slice(0, 2).toUpperCase()}</span><div><small>{deck.subject}</small><h3>{deck.title}</h3><p>{deck.cards.length} questions · Mixed formats · Instant feedback</p></div><button className="primary-button" onClick={() => openDeck(deck, 'test')}>Start test <Icon name="arrow" /></button></article>)}
             </div>
           </section>}
 
@@ -822,7 +846,7 @@ export default function Home() {
             <div className="page-heading"><span className="eyebrow">SETTINGS</span><h1>Make Studii yours</h1><p>Adjust your study experience and manage locally stored app data.</p></div>
             <div className="settings-grid">
               <article><div><h3>Appearance</h3><p>Choose the theme that feels best during long study sessions.</p></div><button className="secondary-button" onClick={toggleTheme}><Icon name={theme === 'dark' ? 'sun' : 'moon'} /> Use {theme === 'dark' ? 'light' : 'dark'} mode</button></article>
-              <article><div><h3>Keyboard controls</h3><p>Space flips cards. Left returns to the previous card. Right marks it correct.</p></div><span className="setting-status">Enabled</span></article>
+              <article><div><h3>Keyboard controls</h3><p>Space flips cards. Left marks the current card for another look. Right marks it correct.</p></div><span className="setting-status">Enabled</span></article>
               <article><div><h3>AI study tools</h3><p>Gemini-generated cards, study guides, and tutoring are available during free early access.</p></div><span className="setting-status">Free</span></article>
               <article><div><h3>Your data</h3><p>{cloudSync === 'local' ? 'Sign in to back up your study data and sync it across devices.' : cloudSync === 'error' ? 'Cloud sync needs your Supabase project configuration and database schema.' : 'Your sets, reviews, mistakes, and calendar are connected to cloud backup.'}</p></div><span className={`setting-status ${cloudSync === 'ready' || cloudSync === 'saving' ? '' : 'neutral'}`}>{cloudSync === 'saving' ? 'Saving…' : cloudSync === 'ready' ? 'Synced' : cloudSync === 'checking' ? 'Checking' : cloudSync === 'error' ? 'Setup needed' : 'Local'}</span></article>
             </div>
