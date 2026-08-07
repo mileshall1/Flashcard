@@ -15,7 +15,7 @@ export async function POST(request) {
 
 Course: ${deck.subject}\nSet: ${deck.title}\n\nStudy material:\n${source}\n\nStudent: ${question}`;
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${process.env.GEMINI_MODEL || 'gemini-3.6-flash'}:generateContent`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': geminiKey }, body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: prompt }] }], generationConfig: { maxOutputTokens: 700 } }),
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': geminiKey }, body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: prompt }] }], generationConfig: { maxOutputTokens: 1400, thinkingConfig: { thinkingLevel: 'low' } } }),
     });
     const data = await response.json();
     if (!response.ok) return NextResponse.json({ error: data?.error?.message || 'The tutor could not answer right now.' }, { status: response.status });
