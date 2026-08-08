@@ -426,6 +426,8 @@ button { color: inherit; }
 .dark .exam-pill b { color: #ffb982; }
 .dark .stats-grid > div, .dark .deck-card { border-color: #39344d; background: rgba(37,33,50,.9); box-shadow: 0 12px 32px rgba(0,0,0,.15); }
 .dark .test-library article, .dark .progress-list article, .dark .settings-grid article { border-color: #39344d; background: rgba(37,33,50,.9); box-shadow: 0 12px 32px rgba(0,0,0,.15); }
+.dark .settings-grid .secondary-button { border-color: #62588a; color: #f7f5ff; background: #393250; box-shadow: none; }
+.dark .settings-grid .secondary-button:hover { border-color: #8173e8; color: #fff; background: #463d68; }
 .dark .review-queue article, .dark .mistake-list article { border-color: #39344d; background: rgba(37,33,50,.9); }
 .dark .empty-state { border-color: #514a6b; background: rgba(37,33,50,.7); }
 .dark .month-calendar { border-color: #39344d; background: rgba(37,33,50,.9); }
