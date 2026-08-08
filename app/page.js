@@ -57,6 +57,7 @@ const subjects = [
   'Psychology', 'Sociology', 'Philosophy', 'Literature', 'English',
   'Spanish', 'French', 'Computer Science', 'Business', 'Nursing', 'Other',
 ];
+const sampleDeckIds = new Set(['biology', 'calculus', 'history']);
 
 function localDateKey(date = new Date()) {
   const year = date.getFullYear();
@@ -72,6 +73,21 @@ function sanitizeDecks(value) {
     typeof deck.subject === 'string' && Array.isArray(deck.cards) && deck.cards.length > 0 &&
     deck.cards.every((card) => card && typeof card.front === 'string' && typeof card.back === 'string')
   ));
+}
+
+function DeleteSetModal({ deck, onCancel, onConfirm }) {
+  return <div className="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="delete-set-title">
+    <div className="delete-set-modal">
+      <span className="delete-set-icon">×</span>
+      <span className="eyebrow">DELETE STUDY SET</span>
+      <h2 id="delete-set-title">Delete “{deck.title}”?</h2>
+      <p>This permanently removes all {deck.cards.length} cards, their review schedule, and related mistakes from your account.</p>
+      <div className="delete-set-actions">
+        <button className="secondary-button" onClick={onCancel}>Keep set</button>
+        <button className="danger-button" onClick={onConfirm}>Delete set</button>
+      </div>
+    </div>
+  </div>;
 }
 
 function Icon({ name }) {
@@ -504,6 +520,7 @@ export default function Home() {
   const [activeCardIndex, setActiveCardIndex] = useState(0);
   const [activePage, setActivePage] = useState('home');
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [deckToDelete, setDeckToDelete] = useState(null);
   const profileMenuRef = useRef(null);
 
   /* Local-only product state is intentionally hydrated after mount to keep SSR output deterministic. */
@@ -513,7 +530,7 @@ export default function Home() {
     if (saved) {
       try {
         const validDecks = sanitizeDecks(JSON.parse(saved));
-        if (validDecks?.length) setDecks(validDecks);
+        if (validDecks !== null) setDecks(validDecks);
       } catch { /* keep starter data */ }
     }
     const savedTheme = window.localStorage.getItem('studii-theme');
@@ -534,7 +551,7 @@ export default function Home() {
       if (!response.ok) { setCloudSync('error'); return; }
       if (data.state) {
         const validDecks = sanitizeDecks(data.state.decks);
-        if (validDecks?.length) setDecks(validDecks);
+        if (validDecks !== null) setDecks(validDecks);
         if (Array.isArray(data.state.calendarItems)) setCalendarItems(data.state.calendarItems);
         if (data.state.reviewSchedule && typeof data.state.reviewSchedule === 'object') setReviewSchedule(data.state.reviewSchedule);
         if (Array.isArray(data.state.mistakes)) setMistakes(data.state.mistakes);
@@ -616,6 +633,21 @@ export default function Home() {
   const saveManagedDeck = (updatedDeck) => {
     save(decks.map((deck) => deck.id === updatedDeck.id ? updatedDeck : deck));
     setManagedDeck(null);
+  };
+
+  const deleteDeck = (deck) => {
+    save(decks.filter((item) => item.id !== deck.id));
+    setReviewSchedule((current) => {
+      const next = Object.fromEntries(Object.entries(current).filter(([key]) => !key.startsWith(`${deck.id}:`)));
+      window.localStorage.setItem('studii-review-schedule', JSON.stringify(next));
+      return next;
+    });
+    setMistakes((current) => {
+      const next = current.filter((item) => item.deckId !== deck.id);
+      window.localStorage.setItem('studii-mistakes', JSON.stringify(next));
+      return next;
+    });
+    setDeckToDelete(null);
   };
 
   const recordReview = ({ deckId, cardIndex, correct, source = 'flashcard' }) => {
@@ -747,9 +779,9 @@ export default function Home() {
             <div className="exam-pill"><Icon name="clock" /><div><small>NEXT UP</small><strong>{nextEvent?.title || 'Plan a study session'}</strong></div><b>{nextEvent ? new Date(`${nextEvent.date}T12:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'Add date'}</b></div>
           </section>
 
-          <section className="continue-card">
+          {decks.length ? <section className="continue-card">
             <div className="continue-copy">
-              <span className="eyebrow">CONTINUE STUDYING</span>
+              <span className="eyebrow">{sampleDeckIds.has(decks[0].id) ? 'SAMPLE SET' : 'CONTINUE STUDYING'}</span>
               <h2>{decks[0]?.title}</h2>
               <p>{decks[0]?.cards.length} cards · {decks[0]?.mastered} mastered</p>
               <div className="continue-actions">
@@ -762,7 +794,9 @@ export default function Home() {
               <div className="stack-card back-one" />
               <div className="stack-card front-card"><small>CELL BIOLOGY</small><strong>What happens during prophase?</strong><span>Tap to reveal</span></div>
             </div>
-          </section>
+          </section> : <section className="empty-home-card">
+            <span><Icon name="cards" /></span><div><span className="eyebrow">YOUR LIBRARY IS EMPTY</span><h2>Create your first study set</h2><p>Paste notes or upload class material and Studii will build focused flashcards for you.</p></div><button className="primary-button" onClick={() => setShowCreate(true)}>Create a set <Icon name="spark" /></button>
+          </section>}
 
           <section className="stats-grid" id="progress">
             <div><span className="stat-icon purple"><Icon name="cards" /></span><p><strong>{decks.reduce((sum, deck) => sum + deck.cards.length, 0)}</strong><small>Total cards</small></p><em>+12 this week</em></div>
@@ -817,12 +851,13 @@ export default function Home() {
 
           {activePage === 'sets' && <section className="sets-section">
             <div className="section-heading"><div><h2>Your study sets</h2><p>Jump back into a subject or start something new.</p></div><button className="text-button" onClick={() => setShowCreate(true)}>Create a set <Icon name="arrow" /></button></div>
+            {decks.some((deck) => sampleDeckIds.has(deck.id)) && <div className="sample-note"><Icon name="spark" /><p><strong>Start with the samples.</strong> Biology, Calculus, and U.S. History are example sets included for every new student. Edit or delete them whenever you’re ready.</p></div>}
             <div className="deck-grid">
               {filteredDecks.map((deck) => {
                 const percent = Math.round((deck.mastered / deck.cards.length) * 100);
                 return (
                   <article className="deck-card" key={deck.id}>
-                    <div className={`deck-cover ${deck.color}`}><span>{deck.subject.slice(0, 2).toUpperCase()}</span><small>{deck.subject}</small><b>{deck.title.split('—')[1]?.trim() || deck.title}</b></div>
+                    <div className={`deck-cover ${deck.color}`}><span>{deck.subject.slice(0, 2).toUpperCase()}</span><small>{sampleDeckIds.has(deck.id) ? `Sample set · ${deck.subject}` : deck.subject}</small><b>{deck.title.split('—')[1]?.trim() || deck.title}</b></div>
                     <div className="deck-info">
                       <div className="deck-meta"><span>{deck.cards.length} cards</span><span>Updated {deck.updated}</span></div>
                       <h3>{deck.title}</h3>
@@ -831,7 +866,7 @@ export default function Home() {
                         <button onClick={() => openDeck(deck, 'study')}>Study <Icon name="arrow" /></button>
                         <button className="test-button" onClick={() => openDeck(deck, 'test')}><Icon name="test" /> Test</button>
                       </div>
-                      <div className="deck-tool-links"><button onClick={() => openManager(deck, 'guide')}>Study guide</button><button onClick={() => openManager(deck, 'tutor')}>AI tutor</button><button onClick={() => openManager(deck, 'edit')}>Edit cards</button></div>
+                      <div className="deck-tool-links"><button onClick={() => openManager(deck, 'guide')}>Study guide</button><button onClick={() => openManager(deck, 'tutor')}>AI tutor</button><button onClick={() => openManager(deck, 'edit')}>Edit cards</button><button className="delete-link" onClick={() => setDeckToDelete(deck)}>Delete</button></div>
                     </div>
                   </article>
                 );
@@ -881,6 +916,7 @@ export default function Home() {
       </main>
       {showCreate && <CreateModal onClose={() => setShowCreate(false)} onCreate={addDeck} />}
       {managedDeck && <DeckManagerModal deck={managedDeck} mode={managerMode} onClose={() => setManagedDeck(null)} onSave={saveManagedDeck} />}
+      {deckToDelete && <DeleteSetModal deck={deckToDelete} onCancel={() => setDeckToDelete(null)} onConfirm={() => deleteDeck(deckToDelete)} />}
     </div>
   );
 }
