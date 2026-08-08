@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 const starterDecks = [
   {
@@ -503,6 +503,8 @@ export default function Home() {
   const [managerMode, setManagerMode] = useState('edit');
   const [activeCardIndex, setActiveCardIndex] = useState(0);
   const [activePage, setActivePage] = useState('home');
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const profileMenuRef = useRef(null);
 
   /* Local-only product state is intentionally hydrated after mount to keep SSR output deterministic. */
   /* eslint-disable react-hooks/set-state-in-effect */
@@ -558,6 +560,21 @@ export default function Home() {
     }, 700);
     return () => window.clearTimeout(timer);
   }, [decks, calendarItems, reviewSchedule, mistakes, syncEnabled]);
+
+  useEffect(() => {
+    if (!showProfileMenu) return;
+    const closeProfileMenu = (event) => {
+      if (event.type === 'keydown' && event.key !== 'Escape') return;
+      if (event.type === 'mousedown' && profileMenuRef.current?.contains(event.target)) return;
+      setShowProfileMenu(false);
+    };
+    document.addEventListener('mousedown', closeProfileMenu);
+    document.addEventListener('keydown', closeProfileMenu);
+    return () => {
+      document.removeEventListener('mousedown', closeProfileMenu);
+      document.removeEventListener('keydown', closeProfileMenu);
+    };
+  }, [showProfileMenu]);
 
   const toggleTheme = () => {
     const nextTheme = theme === 'dark' ? 'light' : 'dark';
@@ -699,7 +716,16 @@ export default function Home() {
           <a className={activePage === 'settings' ? 'active' : ''} href="#settings"><Icon name="settings" /> Settings</a>
           <a href="/auth"><Icon name="progress" /> Account & sync</a>
         </nav>
-        <div className="profile"><span>MH</span><div><strong>Miles</strong><small>Free early access</small></div><button aria-label="Profile options">•••</button></div>
+        <div className="profile" ref={profileMenuRef}>
+          <span>MH</span><div><strong>Miles</strong><small>Free early access</small></div>
+          <button className="profile-trigger" aria-label="Profile options" aria-expanded={showProfileMenu} aria-haspopup="menu" onClick={() => setShowProfileMenu((visible) => !visible)}>•••</button>
+          {showProfileMenu && <div className="profile-menu" role="menu">
+            <div><strong>Miles</strong><small>Manage your study account</small></div>
+            <a role="menuitem" href="#settings" onClick={() => setShowProfileMenu(false)}><Icon name="settings" /> Settings</a>
+            <a role="menuitem" href="/auth"><Icon name="progress" /> Account & sync</a>
+            <form action="/auth/signout" method="post"><button role="menuitem" type="submit"><Icon name="back" /> Sign out</button></form>
+          </div>}
+        </div>
       </aside>
 
       <main className="dashboard">
