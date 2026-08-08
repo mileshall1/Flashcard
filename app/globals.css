@@ -417,6 +417,10 @@ button { color: inherit; }
   color-scheme: dark;
 }
 .dark .sidebar { background: linear-gradient(180deg, #17142e, #211b48 58%, #100e20); }
+.dark .profile-menu { border-color: #4b4563; background: #292538; color: #f7f5ff; box-shadow: 0 18px 48px rgba(0,0,0,.45); }
+.dark .profile-menu > div { border-color: #464059; }.dark .profile-menu > div small { color: #b7b1c7; }
+.dark .profile-menu a, .dark .profile-menu form button { color: #d5cfff; }
+.dark .profile-menu a:hover, .dark .profile-menu form button:hover { color: #fff; background: #463d68; }
 .dark .topbar { border-color: rgba(73,67,101,.72); background: rgba(22,20,33,.82); }
 .dark .search, .dark .theme-toggle { border-color: #3d3855; background: rgba(39,35,55,.9); color: #aaa5bf; box-shadow: 0 7px 24px rgba(0,0,0,.18); }
 .dark .search input { color: #f4f1ff; }
@@ -426,6 +430,8 @@ button { color: inherit; }
 .dark .exam-pill b { color: #ffb982; }
 .dark .stats-grid > div, .dark .deck-card { border-color: #39344d; background: rgba(37,33,50,.9); box-shadow: 0 12px 32px rgba(0,0,0,.15); }
 .dark .test-library article, .dark .progress-list article, .dark .settings-grid article { border-color: #39344d; background: rgba(37,33,50,.9); box-shadow: 0 12px 32px rgba(0,0,0,.15); }
+.app-shell.dark .secondary-button { border-color: #62588a; color: #f7f5ff; background: #393250; box-shadow: none; }
+.app-shell.dark .secondary-button:hover { border-color: #8173e8; color: #fff; background: #463d68; }
 .dark .settings-grid .secondary-button { border-color: #62588a; color: #f7f5ff; background: #393250; box-shadow: none; }
 .dark .settings-grid .secondary-button:hover { border-color: #8173e8; color: #fff; background: #463d68; }
 .dark .review-queue article, .dark .mistake-list article { border-color: #39344d; background: rgba(37,33,50,.9); }
@@ -435,6 +441,8 @@ button { color: inherit; }
 .dark .calendar-grid article { border-color: #403a50; background: #292536; }
 .dark .month-toolbar button { border-color: #4c4566; color: #c4baff; background: #393250; }
 .dark .progress-list article > span { background: #403a50; }
+.dark .progress-list button { padding: 8px 10px; border: 1px solid #62588a; border-radius: 9px; color: #d5ceff; background: #393250; }
+.dark .progress-list button:hover { border-color: #8173e8; color: #fff; background: #463d68; }
 .dark .stat-icon.purple { color: #c4baff; background: #403765; }
 .dark .stat-icon.green { color: #8fe4c7; background: #254c44; }
 .dark .stat-icon.orange { color: #ffc18f; background: #513a2e; }
