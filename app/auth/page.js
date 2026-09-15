@@ -4,6 +4,12 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { createClient, isSupabaseConfigured } from '../../lib/supabase/client';
 
+function confirmationRedirectUrl() {
+  const configuredSite = process.env.NEXT_PUBLIC_SITE_URL?.trim();
+  const origin = configuredSite || window.location.origin;
+  return `${origin.replace(/\/$/, '')}/auth/callback`;
+}
+
 export default function AuthPage() {
   const [mode, setMode] = useState('signin');
   const [email, setEmail] = useState('');
@@ -20,7 +26,7 @@ export default function AuthPage() {
     setMessage('');
     const supabase = createClient();
     const options = mode === 'signup'
-      ? { email, password, options: { emailRedirectTo: `${window.location.origin}/auth/callback` } }
+      ? { email, password, options: { emailRedirectTo: confirmationRedirectUrl() } }
       : { email, password };
     const { data, error } = mode === 'signup'
       ? await supabase.auth.signUp(options)
@@ -39,7 +45,7 @@ export default function AuthPage() {
     if (!email || loading) return;
     setLoading(true);
     const supabase = createClient();
-    const { error } = await supabase.auth.resend({ type: 'signup', email, options: { emailRedirectTo: `${window.location.origin}/auth/callback` } });
+    const { error } = await supabase.auth.resend({ type: 'signup', email, options: { emailRedirectTo: confirmationRedirectUrl() } });
     setLoading(false);
     setMessage(error ? error.message : 'Confirmation requested again. Check your inbox and spam folder; another request is limited to once per minute.');
   };
