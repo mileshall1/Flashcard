@@ -102,7 +102,7 @@ function DeleteSetModal({ deck, onCancel, onConfirm }) {
 }
 
 function Icon({ name }) {
-  const icons = { home: '⌂', library: '▤', create: '+', progress: '↗', settings: '⚙', search: '⌕', clock: '◷', cards: '▱', spark: '✦', close: '×', arrow: '→', back: '←', upload: '⇧', moon: '☾', sun: '☀', test: '✓', calendar: '□' };
+  const icons = { home: '⌂', library: '▤', create: '+', progress: '↗', settings: '⚙', search: '⌕', clock: '◷', cards: '▱', spark: '✦', close: '×', arrow: '→', back: '←', upload: '⇧', moon: '☾', sun: '☀', test: '✓', calendar: '□', games: '◈' };
   return <span aria-hidden="true">{icons[name]}</span>;
 }
 
@@ -419,6 +419,100 @@ function TestView({ deck, onExit, onAnswer, theme }) {
   );
 }
 
+function MatchGame({ deck, onExit, onReview, theme }) {
+  const buildTiles = () => deck.cards.slice(0, 6).flatMap((card, cardIndex) => ([
+    { id: `${cardIndex}-front`, cardIndex, kind: 'question', text: card.front },
+    { id: `${cardIndex}-back`, cardIndex, kind: 'answer', text: card.back },
+  ])).sort(() => Math.random() - 0.5);
+  const [tiles, setTiles] = useState(buildTiles);
+  const [open, setOpen] = useState([]);
+  const [matched, setMatched] = useState([]);
+  const [moves, setMoves] = useState(0);
+  const [seconds, setSeconds] = useState(0);
+  const [locked, setLocked] = useState(false);
+  const complete = matched.length === tiles.length && tiles.length > 0;
+
+  useEffect(() => {
+    if (complete) return undefined;
+    const timer = window.setInterval(() => setSeconds((value) => value + 1), 1000);
+    return () => window.clearInterval(timer);
+  }, [complete]);
+
+  const chooseTile = (tile) => {
+    if (locked || open.includes(tile.id) || matched.includes(tile.id)) return;
+    if (!open.length) { setOpen([tile.id]); return; }
+    const first = tiles.find((item) => item.id === open[0]);
+    const nextOpen = [...open, tile.id];
+    setOpen(nextOpen);
+    setMoves((value) => value + 1);
+    if (first.cardIndex === tile.cardIndex && first.kind !== tile.kind) {
+      setMatched((value) => [...value, ...nextOpen]);
+      setOpen([]);
+      onReview?.({ deckId: deck.id, cardIndex: tile.cardIndex, correct: true, source: 'match' });
+    } else {
+      setLocked(true);
+      window.setTimeout(() => { setOpen([]); setLocked(false); }, 750);
+    }
+  };
+
+  const restart = () => {
+    setTiles(buildTiles()); setOpen([]); setMatched([]); setMoves(0); setSeconds(0); setLocked(false);
+  };
+
+  return <main className={`study-page game-session ${theme}`}>
+    <header className="study-header"><button className="icon-button" onClick={onExit} aria-label="Exit match game"><Icon name="close" /></button><div><strong>{deck.title}</strong><span>Match game</span></div><span>{moves} moves · {seconds}s</span></header>
+    <div className="progress-track"><i style={{ width: `${(matched.length / Math.max(1, tiles.length)) * 100}%` }} /></div>
+    {complete ? <div className="results-card game-results"><span className="results-icon">★</span><span className="eyebrow">BOARD CLEARED</span><h1>Perfect match.</h1><p>You paired <strong>{tiles.length / 2} concepts</strong> in {moves} moves and {seconds} seconds.</p><div className="game-score"><b>{Math.max(100, 1200 - moves * 45 - seconds * 4).toLocaleString()}</b><span>points</span></div><div className="results-actions"><button className="secondary-button" onClick={onExit}>Back to games</button><button className="primary-button" onClick={restart}>Play again</button></div></div> :
+      <section className="match-stage"><div className="game-hud"><div><span className="eyebrow">MEMORY MATCH</span><h1>Pair each question with its answer</h1></div><p><b>{matched.length / 2}</b> / {tiles.length / 2} matched</p></div><div className="match-grid">{tiles.map((tile) => { const revealed = open.includes(tile.id) || matched.includes(tile.id); return <button key={tile.id} className={`${revealed ? 'revealed' : ''} ${matched.includes(tile.id) ? 'matched' : ''}`} onClick={() => chooseTile(tile)} aria-label={revealed ? `${tile.kind}: ${tile.text}` : 'Hidden card'}><span className="tile-back"><Icon name="spark" /></span><span className="tile-face"><small>{tile.kind}</small><b>{tile.text}</b></span></button>; })}</div></section>}
+  </main>;
+}
+
+function RapidGame({ deck, onExit, onAnswer, theme }) {
+  const [index, setIndex] = useState(0);
+  const [seconds, setSeconds] = useState(45);
+  const [score, setScore] = useState(0);
+  const [streak, setStreak] = useState(0);
+  const [bestStreak, setBestStreak] = useState(0);
+  const [finished, setFinished] = useState(false);
+  const [feedback, setFeedback] = useState('');
+  const cardIndex = index % deck.cards.length;
+  const card = deck.cards[cardIndex];
+  const choices = useMemo(() => {
+    const wrong = deck.cards.filter((_, itemIndex) => itemIndex !== cardIndex).map((item) => item.back).slice(0, 3);
+    while (wrong.length < 3) wrong.push('None of these answers');
+    const all = [card.back, ...wrong];
+    const offset = index % all.length;
+    return [...all.slice(offset), ...all.slice(0, offset)];
+  }, [card.back, cardIndex, deck.cards, index]);
+
+  useEffect(() => {
+    if (finished) return undefined;
+    const timer = window.setInterval(() => setSeconds((value) => {
+      if (value <= 1) { setFinished(true); return 0; }
+      return value - 1;
+    }), 1000);
+    return () => window.clearInterval(timer);
+  }, [finished]);
+
+  const answer = (choice) => {
+    if (feedback || finished) return;
+    const correct = choice === card.back;
+    const nextStreak = correct ? streak + 1 : 0;
+    setFeedback(correct ? 'correct' : 'wrong');
+    if (correct) setScore((value) => value + 100 + streak * 20);
+    setStreak(nextStreak);
+    setBestStreak((value) => Math.max(value, nextStreak));
+    onAnswer?.({ deckId: deck.id, cardIndex, correct, question: card.front, answer: card.back, selected: choice, source: 'rapid' });
+    window.setTimeout(() => { setIndex((value) => value + 1); setFeedback(''); }, 450);
+  };
+
+  const restart = () => { setIndex(0); setSeconds(45); setScore(0); setStreak(0); setBestStreak(0); setFinished(false); setFeedback(''); };
+  return <main className={`study-page game-session rapid-session ${theme}`}>
+    <header className="study-header"><button className="icon-button" onClick={onExit} aria-label="Exit rapid recall"><Icon name="close" /></button><div><strong>{deck.title}</strong><span>Rapid recall</span></div><span>{score.toLocaleString()} pts</span></header>
+    {finished ? <div className="results-card game-results"><span className="results-icon">⚡</span><span className="eyebrow">TIME&apos;S UP</span><h1>{score >= 1000 ? 'Lightning fast.' : 'Your recall is warming up.'}</h1><p>You answered <strong>{index} questions</strong> with a best streak of {bestStreak}.</p><div className="game-score"><b>{score.toLocaleString()}</b><span>points</span></div><div className="results-actions"><button className="secondary-button" onClick={onExit}>Back to games</button><button className="primary-button" onClick={restart}>Try again</button></div></div> : <section className="rapid-stage"><div className="rapid-hud"><div className={`timer-ring ${seconds <= 10 ? 'urgent' : ''}`}><b>{seconds}</b><span>seconds</span></div><div><span>Score</span><b>{score.toLocaleString()}</b></div><div><span>Streak</span><b>⚡ {streak}</b></div></div><div className={`rapid-card ${feedback}`}><span className="eyebrow">QUESTION {index + 1}</span><h1>{card.front}</h1><div>{choices.map((choice, choiceIndex) => <button key={`${choice}-${choiceIndex}`} onClick={() => answer(choice)} className={feedback && choice === card.back ? 'correct' : ''}><span>{String.fromCharCode(65 + choiceIndex)}</span><b>{choice}</b></button>)}</div></div></section>}
+  </main>;
+}
+
 function DeckManagerModal({ deck, mode, onClose, onSave }) {
   const [draft, setDraft] = useState(() => ({ ...deck, cards: deck.cards.map((card) => ({ ...card })) }));
   const [tutorQuestion, setTutorQuestion] = useState('');
@@ -571,7 +665,7 @@ export default function Home() {
       setCloudSync('ready');
       setSyncEnabled(true);
     }).catch(() => setCloudSync('error'));
-    const syncPage = () => setActivePage(['sets', 'tests', 'calendar', 'progress', 'settings', 'review', 'mistakes'].includes(window.location.hash.slice(1)) ? window.location.hash.slice(1) : 'home');
+    const syncPage = () => setActivePage(['sets', 'tests', 'games', 'calendar', 'progress', 'settings', 'review', 'mistakes'].includes(window.location.hash.slice(1)) ? window.location.hash.slice(1) : 'home');
     syncPage();
     window.addEventListener('hashchange', syncPage);
     setMounted(true);
@@ -745,6 +839,8 @@ export default function Home() {
   if (!mounted) return <div className="app-loading" aria-label="Loading Studii" />;
 
   if (activeDeck && activeMode === 'test') return <TestView deck={activeDeck} onExit={() => setActiveDeck(null)} onAnswer={recordTestAnswer} theme={theme} />;
+  if (activeDeck && activeMode === 'match') return <MatchGame deck={activeDeck} onExit={() => setActiveDeck(null)} onReview={recordReview} theme={theme} />;
+  if (activeDeck && activeMode === 'rapid') return <RapidGame deck={activeDeck} onExit={() => setActiveDeck(null)} onAnswer={recordTestAnswer} theme={theme} />;
   if (activeDeck) return <StudyView deck={activeDeck} initialCardIndex={activeCardIndex} onExit={() => setActiveDeck(null)} onUpdate={updateMastered} onReview={recordReview} theme={theme} />;
 
   return (
@@ -758,6 +854,7 @@ export default function Home() {
           <button onClick={() => setShowCreate(true)}><Icon name="create" /> Create new</button>
           <a className={activePage === 'calendar' ? 'active' : ''} href="#calendar"><Icon name="calendar" /> Calendar</a>
           <a className={activePage === 'tests' ? 'active' : ''} href="#tests"><Icon name="test" /> Practice tests</a>
+          <a className={activePage === 'games' ? 'active' : ''} href="#games"><Icon name="games" /> Games <b>2</b></a>
           <a className={activePage === 'mistakes' ? 'active' : ''} href="#mistakes"><Icon name="back" /> Mistakes <b>{mistakes.length}</b></a>
           <a className={activePage === 'progress' ? 'active' : ''} href="#progress"><Icon name="progress" /> Progress</a>
         </nav>
@@ -901,6 +998,16 @@ export default function Home() {
             <div className="test-library">
               {filteredDecks.map((deck) => <article key={deck.id}><span className={`test-subject ${deck.color}`}>{deck.subject.slice(0, 2).toUpperCase()}</span><div><small>{deck.subject}</small><h3>{deck.title}</h3><p>{deck.cards.length} questions · Mixed formats · Instant feedback</p></div><button className="primary-button" onClick={() => openDeck(deck, 'test')}>Start test <Icon name="arrow" /></button></article>)}
             </div>
+          </section>}
+
+          {activePage === 'games' && <section className="page-view games-page">
+            <div className="page-heading"><span className="eyebrow">STUDY GAMES</span><h1>Turn your notes into a high score</h1><p>Pick a game and a study set. Every round reinforces the material you already need for class.</p></div>
+            <div className="game-mode-grid">
+              <article className="game-mode match-mode"><div className="game-art"><span>?</span><span>✓</span><span>A</span><span>✦</span></div><div><span className="eyebrow">MEMORY + RECOGNITION</span><h2>Match</h2><p>Race to pair every question with its correct answer. Fewer moves means a higher score.</p><ul><li>6 concept pairs</li><li>Move counter</li><li>Timed rounds</li></ul></div></article>
+              <article className="game-mode rapid-mode"><div className="rapid-art"><b>⚡</b><span>45</span><small>SEC</small></div><div><span className="eyebrow">SPEED + RECALL</span><h2>Rapid Recall</h2><p>Answer as many questions as you can before the clock hits zero. Build streaks for bonus points.</p><ul><li>45-second rounds</li><li>Streak bonuses</li><li>Instant feedback</li></ul></div></article>
+            </div>
+            <div className="game-library-heading"><div><h2>Choose a set to play</h2><p>Your games update automatically when you edit or generate cards.</p></div><span>{filteredDecks.length} sets ready</span></div>
+            <div className="game-deck-list">{filteredDecks.map((deck) => <article key={deck.id}><span className={`test-subject ${deck.color}`}>{deck.subject.slice(0, 2).toUpperCase()}</span><div><small>{deck.subject}</small><h3>{deck.title}</h3><p>{Math.min(deck.cards.length, 6)} pairs ready · {deck.cards.length} rapid questions</p></div><div><button className="secondary-button" onClick={() => openDeck(deck, 'match')}><Icon name="games" /> Play Match</button><button className="primary-button" onClick={() => openDeck(deck, 'rapid')}>⚡ Rapid Recall</button></div></article>)}</div>
           </section>}
 
           {activePage === 'review' && <section className="page-view">
