@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createClient as createSupabaseClient } from '../lib/supabase/client';
 
 const starterDecks = [
   {
@@ -73,6 +74,16 @@ function sanitizeDecks(value) {
     typeof deck.subject === 'string' && Array.isArray(deck.cards) && deck.cards.length > 0 &&
     deck.cards.every((card) => card && typeof card.front === 'string' && typeof card.back === 'string')
   ));
+}
+
+function userLabel(user) {
+  const metadataName = user?.user_metadata?.full_name || user?.user_metadata?.name || user?.user_metadata?.display_name;
+  return metadataName?.trim() || user?.email?.split('@')[0] || 'Guest';
+}
+
+function userInitials(user) {
+  if (!user) return 'ST';
+  return userLabel(user).split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join('').toUpperCase();
 }
 
 function DeleteSetModal({ deck, onCancel, onConfirm }) {
@@ -521,6 +532,7 @@ export default function Home() {
   const [activePage, setActivePage] = useState('home');
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [deckToDelete, setDeckToDelete] = useState(null);
+  const [currentUser, setCurrentUser] = useState(null);
   const profileMenuRef = useRef(null);
 
   /* Local-only product state is intentionally hydrated after mount to keep SSR output deterministic. */
@@ -577,6 +589,14 @@ export default function Home() {
     }, 700);
     return () => window.clearTimeout(timer);
   }, [decks, calendarItems, reviewSchedule, mistakes, syncEnabled]);
+
+  useEffect(() => {
+    const supabase = createSupabaseClient();
+    if (!supabase) return undefined;
+    supabase.auth.getUser().then(({ data }) => setCurrentUser(data.user || null));
+    const { data } = supabase.auth.onAuthStateChange((_event, session) => setCurrentUser(session?.user || null));
+    return () => data.subscription.unsubscribe();
+  }, []);
 
   useEffect(() => {
     if (!showProfileMenu) return;
@@ -749,13 +769,13 @@ export default function Home() {
           <a href="/auth"><Icon name="progress" /> Account & sync</a>
         </nav>
         <div className="profile" ref={profileMenuRef}>
-          <span>MH</span><div><strong>Miles</strong><small>Free early access</small></div>
+          <span>{userInitials(currentUser)}</span><div><strong>{userLabel(currentUser)}</strong><small>{currentUser?.email || 'Local study mode'}</small></div>
           <button className="profile-trigger" aria-label="Profile options" aria-expanded={showProfileMenu} aria-haspopup="menu" onClick={() => setShowProfileMenu((visible) => !visible)}>•••</button>
           {showProfileMenu && <div className="profile-menu" role="menu">
-            <div><strong>Miles</strong><small>Manage your study account</small></div>
+            <div><strong>{userLabel(currentUser)}</strong><small>{currentUser?.email || 'Not signed in'}</small></div>
             <a role="menuitem" href="#settings" onClick={() => setShowProfileMenu(false)}><Icon name="settings" /> Settings</a>
-            <a role="menuitem" href="/auth"><Icon name="progress" /> Account & sync</a>
-            <form action="/auth/signout" method="post"><button role="menuitem" type="submit"><Icon name="back" /> Sign out</button></form>
+            <a role="menuitem" href="/auth"><Icon name="progress" /> {currentUser ? 'Account & sync' : 'Sign in & sync'}</a>
+            {currentUser && <form action="/auth/signout" method="post"><button role="menuitem" type="submit"><Icon name="back" /> Sign out</button></form>}
           </div>}
         </div>
       </aside>

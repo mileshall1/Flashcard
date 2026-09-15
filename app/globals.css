@@ -50,12 +50,13 @@ button { color: inherit; }
 .sidebar-spacer { flex: 1; }
 .streak-card { display: flex; gap: 10px; align-items: center; padding: 13px; margin: 0 0 12px; border: 1px solid rgba(255,193,103,.25); border-radius: 13px; background: rgba(255,158,92,.12); }
 .streak-card > span { font-size: 24px; }
-.streak-card div, .profile div { display: grid; gap: 2px; }
+.streak-card div, .profile div { min-width: 0; display: grid; gap: 2px; }
 .streak-card strong, .profile strong { font-size: 13px; }
 .streak-card small, .profile small { color: #9995bb; font-size: 11px; }
 .bottom-nav { margin-bottom: 14px; }
 .profile { position: relative; display: flex; align-items: center; gap: 10px; padding: 15px 4px 0; border-top: 1px solid rgba(255,255,255,.12); }
 .profile > span { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 50%; color: #fff; background: linear-gradient(135deg, #f36fa1, #ff9c66); font-size: 12px; font-weight: 700; }
+.profile > div:not(.profile-menu) { flex: 1; }.profile > div:not(.profile-menu) strong, .profile > div:not(.profile-menu) small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .profile-trigger { margin-left: auto; border: 0; background: transparent; color: #aaa6ca; cursor: pointer; }
 .profile-menu { width: 215px; position: absolute; right: 0; bottom: 50px; z-index: 10; overflow: hidden; padding: 8px; border: 1px solid #e7e3f3; border-radius: 15px; background: #fff; color: var(--ink); box-shadow: 0 18px 48px rgba(12,9,39,.3); animation: page-in .18s both; }
 .profile-menu > div { padding: 9px 10px 11px; border-bottom: 1px solid #eeebf4; }
