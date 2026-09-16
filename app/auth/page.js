@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { createClient, isSupabaseConfigured } from '../../lib/supabase/client';
 
@@ -18,6 +18,16 @@ export default function AuthPage() {
   const [loading, setLoading] = useState(false);
   const [awaitingConfirmation, setAwaitingConfirmation] = useState(false);
   const configured = isSupabaseConfigured();
+
+  /* The callback error only exists in the browser URL after hydration. */
+  /* eslint-disable react-hooks/set-state-in-effect */
+  useEffect(() => {
+    const query = new URLSearchParams(window.location.search);
+    const fragment = new URLSearchParams(window.location.hash.slice(1));
+    const error = query.get('error') || fragment.get('error_description');
+    if (error) setMessage(error.replace(/\+/g, ' '));
+  }, []);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const submit = async (event) => {
     event.preventDefault();
