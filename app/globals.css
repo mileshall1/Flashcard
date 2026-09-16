@@ -28,6 +28,7 @@ body { margin: 0; color: var(--ink); background: radial-gradient(circle at 88% 4
 .auth-card form { gap: 17px; }.auth-card label { color: #4d4860; font-size: 12px; font-weight: 700; }
 .auth-card input { width: 100%; height: 47px; padding: 0 13px; border: 1px solid var(--line); border-radius: 11px; outline: none; background: #fbfafd; }
 .auth-card input:focus { border-color: #7566ea; box-shadow: 0 0 0 3px #ece9ff; }
+.password-help { margin-top: -10px; color: #777187; font-size: 10px; line-height: 1.45; }
 .auth-card form .primary-button { min-height: 47px; margin-top: 2px; }
 .auth-notice, .auth-message { padding: 11px 13px; border-radius: 10px; color: #76561e; background: #fff4d9; font-size: 11px; line-height: 1.5; }
 .auth-message { color: #524791; background: #f0edff; }

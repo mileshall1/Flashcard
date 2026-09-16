@@ -16,6 +16,21 @@ bun dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
+## Production authentication
+
+Studii uses Supabase Auth. Configure the project’s **Authentication → URL Configuration** with:
+
+- Site URL: `https://studii-rose.vercel.app`
+- Redirect URL: `https://studii-rose.vercel.app/auth/callback`
+
+For confirmation links that work when opened on a different browser or device, set the **Confirm signup** email template link to:
+
+```html
+<a href="{{ .SiteURL }}/auth/callback?token_hash={{ .TokenHash }}&type=email">Confirm email address</a>
+```
+
+This token-hash flow is handled by the callback route without depending on the browser that originally submitted signup.
+
 You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
 
 This project uses [`next/font`](https://nextjs.org/docs/basic-features/font-optimization) to automatically optimize and load Inter, a custom Google Font.
